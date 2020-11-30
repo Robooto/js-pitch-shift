@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pitch Shift It!</title>
+    <style>
+        .center {
+            margin: auto;
+            width: 50%;
+            padding: 5em;
+        }
+        .left-text {
+            text-align: left;
+        }
+        #punch {
+            padding: 1em;
+            background: #4CAF50;
+            font-size: larger;
+        }
+    </style>
+</head>
+
+<body class="center">
+    <div class="center left-text">
+        <button id="punch">Punch it up!</button>
+        <div>
+            <input type="range" id="volume" name="volume" min="0" max="100" value="100">
+            <label for="volume">Volume</label>
+        </div>
+        <div>
+            <input type="checkbox" id="biquad" name="biquad" checked>
+            <label for="biquad">Biquad Filter</label>
+            <input type="range" id="biquad-f" name="biquad-f" min="0" max="10000" value="2000">
+            <label for="distortion">Biquad Frequency</label>
+        </div>
+        <div>
+            <input type="range" id="distortion" name="distortion" min="0" max="1000" value="400">
+            <label for="distortion">Distortion</label>
+        </div>
+        <div>
+            <input type="range" id="pitch" name="pitch" min="-2" max="2" value="0" step="0.1">
+            <label for="pitch">Pitch Shift</label>
+        </div>
+    </div>
+    <script>
+        let biquadFilter;
+        let gainFilter;
+        let mediaStreamSource;
+        let distortion;
+        let compressor;
+        let pitchChangeEffect;
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioContext = new AudioContext();
+
+        // success callback when requesting audio input stream
+        function processStream(stream) {
+
+
+            // Create an AudioNode from the stream.
+            mediaStreamSource = audioContext.createMediaStreamSource(stream);
+            compressor = audioContext.createDynamicsCompressor();
+            pitchChangeEffect = new Jungle(audioContext);
+            biquadFilter = audioContext.createBiquadFilter();
+            gainFilter = audioContext.createGain();
+            distortion = audioContext.createWaveShaper();
+            // microphone -> filter -> destination
+
+            // need to chain all these filters for them to work
+            mediaStreamSource.connect(pitchChangeEffect.input);
+            pitchChangeEffect.output.connect(distortion);
+
+            compressor.connect(distortion);
+            distortion.connect(biquadFilter);
+            biquadFilter.connect(gainFilter);
+            gainFilter.connect(audioContext.destination);
+
+            biquadFilter.type = "lowpass";
+            distortion.curve = makeDistortionCurve(400);
+        }
+
+        // http://stackoverflow.com/questions/22312841/waveshaper-node-in-webaudio-how-to-emulate-distortion
+
+        function makeDistortionCurve(amount) {
+            let k = typeof amount === 'number' ? amount : 50;
+            let n_samples = 44100;
+            let curve = new Float32Array(n_samples);
+
+            for (let i = 0; i < n_samples; ++i) {
+                let x = i * 2 / n_samples - 1;
+                let deg = Math.PI / 180;
+                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+            }
+            return curve;
+        }
+
+        document.querySelector("#punch").addEventListener('click', () => {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(processStream);
+        });
+
+        document.querySelector("#biquad").addEventListener('click', (e) => {
+            if (e.target.checked) {
+                biquadFilter.type = "lowpass";
+            } else {
+                biquadFilter.type = "allpass";
+            }
+        });
+
+        document.querySelector("#biquad-f").addEventListener('input', (e) => {
+            let freq = e.target.value;
+            biquadFilter.frequency.value = freq;
+        });
+
+        document.querySelector("#pitch").addEventListener('input', (e) => {
+            let offset = e.target.value;
+            pitchChangeEffect.setPitchOffset(offset);
+        });
+
+        document.querySelector("#distortion").addEventListener('input', (e) => {
+            let amount = e.target.value;
+            distortion.curve = makeDistortionCurve(parseInt(amount));
+        });
+        document.querySelector("#volume").addEventListener('input', (e) => {
+            let volume = e.target.value;
+            let max = e.target.max;
+            let fraction = parseInt(volume) / parseInt(max);
+            // Let's use an x*x curve (x-squared) since simple linear (x) does not
+            // sound as good.
+            gainFilter.gain.value = fraction * fraction;
+        });
+
+    </script>
+    <script src="jungle.js"></script>
+</body>
+
+</html>
+<!-- Volume stuff
+    https://www.reddit.com/r/javascript/comments/6apke0/a_silly_voice_changer_web_app_thing_made_using/
+    https://www.html5rocks.com/en/tutorials/getusermedia/intro/#toc-webaudio-api 
+    https://www.html5rocks.com/en/tutorials/webaudio/intro/js/volume-sample.js  
+-->
