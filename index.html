@@ -52,13 +52,14 @@
         let compressor;
         let pitchChangeEffect;
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
-        let audioContext = new AudioContext();
+        let audioContext;
 
         // success callback when requesting audio input stream
         function processStream(stream) {
 
 
             // Create an AudioNode from the stream.
+            audioContext = new AudioContext();
             mediaStreamSource = audioContext.createMediaStreamSource(stream);
             compressor = audioContext.createDynamicsCompressor();
             pitchChangeEffect = new Jungle(audioContext);
