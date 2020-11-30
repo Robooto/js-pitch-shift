@@ -8,7 +8,7 @@ docker build -t js-pitch-shift .
 ```
 
 ```bash
-docker run -it -d -p 8666:80 js-pitch-shift
+docker run -it -d -p 8666:443 js-pitch-shift
 ```
 
-http://localhost:8666/index.html
+https://localhost:8666/index.html
