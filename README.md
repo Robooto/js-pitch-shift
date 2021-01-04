@@ -8,7 +8,7 @@ docker build -t js-pitch-shift .
 ```
 
 ```bash
-docker run -it -d -p 8666:443 js-pitch-shift
+docker run -it -d --restart unless-stopped -p 8666:443 js-pitch-shift
 ```
 
 https://localhost:8666/index.html
