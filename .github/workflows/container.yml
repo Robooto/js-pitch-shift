@@ -1,0 +1,24 @@
+name: Container security and smoke test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Build fresh image (includes Brotli minimum-version guard)
+        run: docker build --pull --tag app-ci .
+      - name: Validate Nginx configuration
+        run: docker run --rm --network none app-ci nginx -t
+      - name: Serve the application
+        run: docker run --detach --name app-ci --publish 127.0.0.1:18080:443 app-ci
+      - name: Check index page
+        run: curl --fail --insecure --retry 10 --retry-connrefused --retry-delay 1 https://127.0.0.1:18080/index.html > /dev/null
+      - name: Clean up test container
+        if: always()
+        run: docker rm --force app-ci || true
